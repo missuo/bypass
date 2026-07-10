@@ -1,0 +1,51 @@
+# bypass — self-hosted proxy installers
+
+> One-line `curl`-to-`bash` installers for four self-hosted proxy servers — OpenSnell/Snell, Shadowsocks-Rust, Mieru, and s5-rust (SOCKS5). All scripts are authored by `missuo`, run as **root** on **Linux + systemd**, and manage the full lifecycle (install, configure, update, uninstall, service control, and client share-link generation). This file lets an agent operate all four without cloning the repo.
+
+The install command is `bash <(curl -Ls <shortlink>)`. With no argument each script shows an interactive menu; three of them also take a subcommand. Read the per-tool notes below, then the linked reference file for the full option matrix and prompt order.
+
+## The four proxies
+
+| Proxy | Install one-liner | Subcommands? | Best for |
+|-------|-------------------|--------------|----------|
+| OpenSnell / Snell | `bash <(curl -fsSL https://s.ee/opensnell)` | yes | Surge / Mihomo / Shadowrocket clients |
+| Shadowsocks-Rust | `bash <(curl -Ls https://s.ee/ssrust)` | yes | widest client support; a safe default |
+| Mieru | `bash <(curl -Ls https://s.ee/mieru)` | yes | strong anti-censorship / obfuscation |
+| s5-rust (SOCKS5) | `bash <(curl -Ls https://s.ee/socks5)` | **no** | outbound-IP selection / chaining — **not** GFW bypass |
+
+## Shared subcommands (opensnell, ssrust, mieru)
+
+`install` · `update` · `uninstall` · `start` · `stop` · `restart` · `enable` · `disable` · `status` · `info` · `help`. `reconfigure` on opensnell + mieru; `bbr` on mieru. Example: `bash <(curl -fsSL https://s.ee/opensnell) info`.
+
+## Driving them non-interactively (agents / headless)
+
+The installers prompt for config. With no TTY, prompts hit EOF and take their defaults. **Download the script first**, then run as root:
+
+```bash
+curl -fsSL https://s.ee/opensnell -o /tmp/x.sh
+sudo bash /tmp/x.sh install </dev/null     # accept all defaults → working server
+sudo bash /tmp/x.sh info                    # print credentials + client share links
+```
+
+Supply specific answers with a heredoc in the prompt order documented in each reference file. Notes: **Mieru** needs `systemctl start mita` **and** `mita start`. **Shadowsocks-Rust** method #2 (`2022-blake3-aes-128-gcm`) needs a 16-byte key but the script auto-generates 32 bytes — pick another method or set the password manually. **OpenSnell v6** requires a 16–255-byte PSK and a matching client `mode`.
+
+## s5-rust (SOCKS5) — two important caveats
+
+1. **No subcommands.** The script is a menu-only loop and runs `exec < /dev/tty`, so `... socks5) install` is ignored and headless/piped runs die. For automation, install manually (binary + systemd unit) per the reference, or drive it through a PTY.
+2. **Cannot bypass the GFW.** Plain SOCKS5 has no encryption/obfuscation. Do **not** use it for mainland-China access via an overseas server — use OpenSnell, Shadowsocks-Rust, or Mieru instead.
+
+## Dependency handling & recovery
+
+Scripts self-install dependencies only on apt/dnf/yum. On Alpine/Arch/openSUSE (apk/pacman/zypper) they abort — install the missing tools yourself and re-run (re-running `install`/`update` is safe/idempotent). Note `xz` is `xz-utils` on Debian/Ubuntu but `xz` elsewhere; `unzip` is needed only for OpenSnell's Surge variants. Deps: opensnell → `curl unzip openssl ss`; ssrust → `curl wget tar xz openssl qrencode`; mieru → `curl wget` (+ dpkg/rpm); socks5 → `curl` + systemd. If a service won't start: `journalctl -u <snell-server|shadowsocks-rust|mita|s5-rust> -n 30`.
+
+## Reference files (full details)
+
+- [OpenSnell](https://raw.githubusercontent.com/missuo/bypass/main/skills/proxy-installer/references/opensnell.md): variants (self-hosted + Surge v5/v6), config prompts, Snell config schema, Surge/Mihomo/Shadowrocket share formats.
+- [Shadowsocks-Rust](https://raw.githubusercontent.com/missuo/bypass/main/skills/proxy-installer/references/shadowsocks-rust.md): encryption methods, the method-#2 key-length caveat, `ss://` (SIP002/plain/legacy) formats, QR code.
+- [Mieru](https://raw.githubusercontent.com/missuo/bypass/main/skills/proxy-installer/references/mieru.md): TCP/UDP, single-port vs range, multi-user, the two-step `mita` service model, BBR, `mierus://` links.
+- [s5-rust (SOCKS5)](https://raw.githubusercontent.com/missuo/bypass/main/skills/proxy-installer/references/socks5.md): the no-subcommand/TTY gotcha, GFW warning, binary flags, `--send-through`, manual headless install.
+
+## Optional
+
+- [SKILL.md](https://raw.githubusercontent.com/missuo/bypass/main/skills/proxy-installer/SKILL.md): the same knowledge packaged as an installable agent skill (`npx skills add missuo/bypass`).
+- Upstream software: [shadowsocks-rust](https://github.com/shadowsocks/shadowsocks-rust), [mieru](https://github.com/enfein/mieru). Author's repos: [opensnell](https://github.com/missuo/opensnell), [s5-rust](https://github.com/missuo/s5-rust).
