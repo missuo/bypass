@@ -27,7 +27,7 @@ sudo bash /tmp/x.sh install </dev/null     # accept all defaults → working ser
 sudo bash /tmp/x.sh info                    # print credentials + client share links
 ```
 
-Supply specific answers with a heredoc in the prompt order documented in each reference file. Notes: **Mieru** needs `systemctl start mita` **and** `mita start`. **Shadowsocks-Rust** method #2 (`2022-blake3-aes-128-gcm`) needs a 16-byte key but the script auto-generates 32 bytes — pick another method or set the password manually. **OpenSnell v6** requires a 16–255-byte PSK and a matching client `mode`.
+Supply specific answers with a heredoc in the prompt order documented in each reference file. Notes: **Mieru** needs `systemctl start mita` **and** `mita start`. Behind NAT/relay entries, set Mieru's server-address prompt or `MIERU_SERVER_ADDR` so links use the entry IP. **Shadowsocks-Rust** method #2 (`2022-blake3-aes-128-gcm`) needs a 16-byte key but the script auto-generates 32 bytes — pick another method or set the password manually. **OpenSnell v6** requires a 16–255-byte PSK and a matching client `mode`.
 
 ## s5-rust (SOCKS5) — two important caveats
 

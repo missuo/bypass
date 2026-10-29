@@ -24,7 +24,7 @@ Upstream software: https://github.com/enfein/mieru (installed as a `.deb`/`.rpm`
 
 ## Dependencies
 
-`check_requirements` installs `curl`, `wget` via apt/dnf/yum. The package install itself uses `dpkg`/`apt` or `dnf`/`yum`/`rpm`.
+`check_requirements` installs `curl`, `wget`, `openssl` via apt/dnf/yum. The package install itself uses `dpkg`/`apt` or `dnf`/`yum`/`rpm`.
 
 ## ⚠️ Two-step service model (important)
 
@@ -35,7 +35,7 @@ systemctl start mita     # start the daemon
 mita start               # tell the daemon to start proxying
 ```
 
-`install`, `restart`, and `reconfigure` already do both. `mita status` should report `RUNNING`. If you drive `mita` directly, don't forget the CLI `start`/`stop`.
+`install`, `restart`, and `reconfigure` already do both and warn if `mita status` does not reach `RUNNING`. If you drive `mita` directly, don't forget the CLI `start`/`stop`.
 
 ## Config prompts (in order) — for scripting a heredoc
 
@@ -45,8 +45,16 @@ mita start               # tell the daemon to start proxying
 3b. (range) `Enter port range (e.g. 2012-2022, default: 2012-2022):`
 4. `Number of users (default: 1):`
 5. Per user: `Username (default: mieru<random4>):` then `Password (leave empty for random):` (random = 24 chars)
+6. `Server address (default: auto-detect public IPv4):` — the address clients connect to, used only for the share link. **Set it behind NAT / relay / IPLC entries**, where the detected egress IP is wrong. Saved and reused by `info`; `MIERU_SERVER_ADDR=<addr>` overrides it for both the prompt default and `info`.
+7. `Listen IP address (leave empty to listen on all interfaces):` → `listenIPAddress` (mita v3.37.0+)
+8. Low entropy mode `Enter your choice (1-5, default: 1):` → 1 = off, 2/3/4/5 = `LOW_ENTROPY_MODE_32/40/48/56` (v3.35.0+). Lowers ciphertext entropy against DPI at the cost of traffic/CPU (32 ≈ +100%, 56 ≈ +14%). A random `LOW_ENTROPY_MASK_ROTATE_RIGHT_1..15` rotation is picked.
+9. `Customize padding lengths? (y/N):` → if `y`: `Max middle padding bytes (0-255, 0 disables):` then `Max end padding bytes (0-255, 0 disables):` (v3.34.0+; blank keeps mieru's internal value)
+10. `TCP idle timeout, e.g. 15m or 1h (min 1m; leave empty for none):` → `advancedSettings.tcpIdleTimeout` (v3.39.0+)
+11. `Require user hint, rejecting clients older than v3.31.0? (y/N):` → `advancedSettings.userHintIsMandatory`
 
-`</dev/null` gives: TCP, single random port, one user with random name/password.
+`</dev/null` gives: TCP, single random port, one user with random name/password, auto-detected address, all optional features off.
+
+Traffic patterns (low entropy, padding) are server-side only here: client and server pick their own patterns independently and any receiver accepts all valid modes, so turning them on does not break existing clients.
 
 ## Resulting config file
 
@@ -63,7 +71,9 @@ mita start               # tell the daemon to start proxying
 }
 ```
 
-Applied with `mita apply config /etc/mita/server_config.json`.
+Optional fields appear only when chosen: `listenIPAddress`, `advancedSettings` (`tcpIdleTimeout`, `userHintIsMandatory`), `trafficPattern` (`lowEntropy`, `padding`).
+
+Written with `mita replace config /etc/mita/server_config.json` (v3.38.0+), which replaces the whole saved config — users dropped from the file are really removed. Older mita falls back to `mita apply config`, which **merges users by name** and keeps removed ones (the script warns). Changing `listenIPAddress` needs `mita stop` + `mita start`; `reconfigure` restarts the daemon, which covers it.
 
 ## BBR
 
@@ -75,9 +85,9 @@ Opens the port/range on UFW or firewalld (protocol matches TCP/UDP; a range like
 
 ## Output / client share format (`info` reprints these)
 
-- Server address, port, protocol, and every user's name/password.
+- Server address (saved answer / `MIERU_SERVER_ADDR` / detected IPv4), port, protocol, any enabled optional features, and every user's name/password.
 - **`mierus://` share link** per user:
-  `mierus://<user>:<pass>@<ip>?profile=default&port=<port>&protocol=<TCP|UDP>&mtu=1400`
+  `mierus://<user>:<pass>@<addr>?profile=default&port=<port>&protocol=<TCP|UDP>&mtu=<mtu>`
 - Client side: `mieru import config <URL>`, then `mieru start`.
 
 ## Common operations
@@ -86,6 +96,7 @@ Opens the port/range on UFW or firewalld (protocol matches TCP/UDP; a range like
 curl -Ls https://s.ee/mieru -o /tmp/mieru.sh
 sudo bash /tmp/mieru.sh install </dev/null    # TCP, random port, 1 random user
 sudo bash /tmp/mieru.sh info                  # print users + mierus:// links
+MIERU_SERVER_ADDR=1.2.3.4 sudo -E bash /tmp/mieru.sh info   # links with a NAT/relay entry address
 sudo bash /tmp/mieru.sh reconfigure           # rebuild config + re-apply
 sudo bash /tmp/mieru.sh bbr                    # enable BBR
 sudo bash /tmp/mieru.sh update

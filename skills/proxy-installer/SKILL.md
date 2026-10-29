@@ -77,7 +77,7 @@ EOF
 ```
 
 Non-obvious per-tool automation notes:
-- **Mieru** needs two steps to run: `systemctl start mita` (the daemon) **and** `mita start` (the proxy). `restart`/`install` handle both; if you drive `mita` directly, remember both.
+- **Mieru** needs two steps to run: `systemctl start mita` (the daemon) **and** `mita start` (the proxy). `restart`/`install` handle both; if you drive `mita` directly, remember both. Behind NAT/relay entries answer the server-address prompt (or set `MIERU_SERVER_ADDR`) so share links use the entry IP, not the egress IP.
 - **Shadowsocks-Rust** method **#2** (`2022-blake3-aes-128-gcm`) needs a **16-byte** base64 key, but the script always auto-generates a 32-byte one — the server will refuse to start. If you must use method #2, pass an explicit 16-byte password (`openssl rand -base64 16`). Methods #1/#3 (32-byte) and legacy #4/#5 are fine with the auto password.
 - **OpenSnell** protocol v6 (Surge beta, variant #3) requires the PSK to be 16–255 bytes and the client's `mode` to match the server's (`default`/`unshaped`/`unsafe-raw`).
 
